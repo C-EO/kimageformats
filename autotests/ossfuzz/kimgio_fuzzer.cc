@@ -125,7 +125,27 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     b.open(QIODevice::ReadOnly);
     handler->setDevice(&b);
     handler->canRead();
-    handler->read(&i);
+
+    bool is_animated = false;
+    if (handler->supportsOption(QImageIOHandler::Animation)) {
+        is_animated = handler->option(QImageIOHandler::Animation).toBool();
+    }
+
+    if (is_animated) { // animated image
+        if (handler->supportsOption(QImageIOHandler::Size)) {
+            handler->option(QImageIOHandler::Size).toSize();
+        }
+
+        handler->imageCount();
+        handler->loopCount();
+        handler->read(&i);
+        handler->nextImageDelay();
+        handler->currentImageNumber();
+        handler->jumpToImage(0);
+        handler->jumpToNextImage();
+    } else { // static image
+        handler->read(&i);
+    }
 
     delete handler;
 
