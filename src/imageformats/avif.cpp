@@ -1160,25 +1160,19 @@ bool QAVIFHandler::jumpToNextImage()
         return false;
     }
 
-    avifResult decodeResult;
-
     if (m_decoder->imageIndex >= 0) {
         if (m_decoder->imageCount < 2) {
-            m_parseState = ParseAvifSuccess;
+            // single image, there is no next image
             return false;
         }
 
-        if (m_decoder->imageIndex >= m_decoder->imageCount - 1) { // start from beginning
-            decodeResult = avifDecoderReset(m_decoder);
-            if (decodeResult != AVIF_RESULT_OK) {
-                qCWarning(LOG_AVIFPLUGIN, "ERROR in avifDecoderReset: %s", avifResultToString(decodeResult));
-                m_parseState = ParseAvifError;
-                return false;
-            }
+        if (m_decoder->imageIndex >= m_decoder->imageCount - 1) {
+            // do not start from beginning when at the end already
+            return false;
         }
     }
 
-    decodeResult = avifDecoderNextImage(m_decoder);
+    avifResult decodeResult = avifDecoderNextImage(m_decoder);
 
     if (decodeResult != AVIF_RESULT_OK) {
         qCWarning(LOG_AVIFPLUGIN, "ERROR: Failed to decode Next image in sequence: %s", avifResultToString(decodeResult));
