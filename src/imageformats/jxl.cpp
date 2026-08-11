@@ -60,7 +60,7 @@ Q_LOGGING_CATEGORY(LOG_JXLPLUGIN, "kf.imageformats.plugins.jxl", QtWarningMsg)
 void *QtJXLMemoryManagerAlloc(void *opaque, size_t size)
 {
     if (opaque) {
-        size_t maxBytes = *(size_t*)opaque;
+        size_t maxBytes = *(size_t *)opaque;
         if (maxBytes && size > maxBytes)
             return NULL;
     }
@@ -75,8 +75,7 @@ void QtJXLMemoryManagerFree(void *, void *address)
 QJpegXLHandler::QJpegXLHandler()
     : m_parseState(ParseJpegXLNotParsed)
     , m_quality(90)
-    , m_currentimage_index(0)
-    , m_previousimage_index(-1)
+    , m_currentimage_index(-1)
     , m_transformations(QImageIOHandler::TransformationNone)
     , m_decoder(nullptr)
     , m_runner(nullptr)
@@ -183,11 +182,7 @@ bool QJpegXLHandler::ensureDecoder()
     }
 
     // Creating a simple memory manager
-    JxlMemoryManager memory_manager = {
-        .opaque = &m_maxBytes,
-        .alloc = QtJXLMemoryManagerAlloc,
-        .free = QtJXLMemoryManagerFree
-    };
+    JxlMemoryManager memory_manager = {.opaque = &m_maxBytes, .alloc = QtJXLMemoryManagerAlloc, .free = QtJXLMemoryManagerFree};
     // Creating the decoder (it makes a deep copy of memory manager)
     m_decoder = JxlDecoderCreate(&memory_manager);
     if (!m_decoder) {
@@ -817,17 +812,11 @@ bool QJpegXLHandler::decode_one_frame()
         exif.updateImageMetadata(m_current_image);
     }
 
+    m_currentimage_index++;
     m_next_image_delay = m_framedelays[m_currentimage_index];
-    m_previousimage_index = m_currentimage_index;
 
     if (m_framedelays.count() > 1) {
-        m_currentimage_index++;
-
-        if (m_currentimage_index >= m_framedelays.count()) {
-            if (!rewind()) {
-                return false;
-            }
-
+        if (m_currentimage_index >= m_framedelays.count() - 1) {
             // all frames in animation have been read
             m_parseState = ParseJpegXLFinished;
         } else {
@@ -847,9 +836,9 @@ bool QJpegXLHandler::read(QImage *image)
         return false;
     }
 
-    if (m_currentimage_index == m_previousimage_index) {
-        *image = m_current_image;
-        return jumpToNextImage();
+    if (m_parseState == ParseJpegXLFinished) {
+        // at the end already
+        return false;
     }
 
     if (decode_one_frame()) {
@@ -1757,19 +1746,26 @@ bool QJpegXLHandler::jumpToNextImage()
     }
 
     if (m_framedelays.count() > 1) {
-        m_currentimage_index++;
-
-        if (m_currentimage_index >= m_framedelays.count()) {
-            if (!rewind()) {
-                return false;
-            }
+        if (m_currentimage_index >= (m_framedelays.count() - 1)) {
+            // we are already at the last frame
+            return false;
         } else {
+            m_currentimage_index++;
+            m_next_image_delay = m_framedelays[m_currentimage_index];
             JxlDecoderSkipFrames(m_decoder, 1);
+            if (m_currentimage_index >= (m_framedelays.count() - 1)) {
+                // last frame reached but no more reading is possible
+                m_parseState = ParseJpegXLFinished;
+            } else {
+                m_parseState = ParseJpegXLSuccess;
+            }
+
+            return true;
         }
     }
 
-    m_parseState = ParseJpegXLSuccess;
-    return true;
+    // static image, there is no next frame
+    return false;
 }
 
 bool QJpegXLHandler::jumpToImage(int imageNumber)
@@ -1782,14 +1778,17 @@ bool QJpegXLHandler::jumpToImage(int imageNumber)
         return false;
     }
 
-    if (imageNumber == m_currentimage_index) {
+    const int next_image_index = m_currentimage_index + 1;
+
+    if (imageNumber == next_image_index) {
+        // This the already the next image to read, no action
         m_parseState = ParseJpegXLSuccess;
         return true;
     }
 
-    if (imageNumber > m_currentimage_index) {
-        JxlDecoderSkipFrames(m_decoder, imageNumber - m_currentimage_index);
-        m_currentimage_index = imageNumber;
+    if (imageNumber > next_image_index) {
+        JxlDecoderSkipFrames(m_decoder, imageNumber - next_image_index);
+        m_currentimage_index = imageNumber - 1;
         m_parseState = ParseJpegXLSuccess;
         return true;
     }
@@ -1801,7 +1800,7 @@ bool QJpegXLHandler::jumpToImage(int imageNumber)
     if (imageNumber > 0) {
         JxlDecoderSkipFrames(m_decoder, imageNumber);
     }
-    m_currentimage_index = imageNumber;
+    m_currentimage_index = imageNumber - 1;
     m_parseState = ParseJpegXLSuccess;
     return true;
 }
@@ -1834,7 +1833,7 @@ int QJpegXLHandler::loopCount() const
 
 bool QJpegXLHandler::rewind()
 {
-    m_currentimage_index = 0;
+    m_currentimage_index = -1;
 
     JxlDecoderReleaseInput(m_decoder);
     JxlDecoderRewind(m_decoder);
