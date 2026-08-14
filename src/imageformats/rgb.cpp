@@ -314,6 +314,8 @@ bool SGIImagePrivate::readImage(QImage &img)
     _numrows = _ysize * _zsize;
 
     if (_rle) {
+        // start table holds file offsets; raster data follows header + both tables
+        const quint32 dataOff = 512 + _numrows * 2 * sizeof(quint32);
         uint l;
         _starttab = new (std::nothrow) quint32[_numrows];
         if (_starttab == nullptr) {
@@ -321,7 +323,10 @@ bool SGIImagePrivate::readImage(QImage &img)
         }
         for (l = 0; !_stream.atEnd() && l < _numrows; l++) {
             _stream >> _starttab[l];
-            _starttab[l] -= 512 + _numrows * 2 * sizeof(quint32);
+            if (_starttab[l] < dataOff) {
+                return false;
+            }
+            _starttab[l] -= dataOff;
             if (_stream.status() != QDataStream::Ok) {
                 return false;
             }
@@ -353,9 +358,10 @@ bool SGIImagePrivate::readImage(QImage &img)
 
     // sanity check
     if (_rle) {
+        const uint dataSize = uint(_data.size());
         for (uint o = 0; o < _numrows; o++) {
-            // don't change to greater-or-equal!
-            if (_starttab[o] + _lengthtab[o] > (uint)_data.size()) {
+            // don't add start+length: uint32 wrap would pass a corrupt file
+            if (_starttab[o] > dataSize || _lengthtab[o] > dataSize - _starttab[o]) {
                 //                 qCDebug(LOG_RGBPLUGIN) << "image corrupt (sanity check failed)";
                 return false;
             }
