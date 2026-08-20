@@ -642,10 +642,31 @@ bool HEIFHandler::read_crop(void *heif_handle, const void *heif_ctx, const QSize
     if (heif_item_get_properties_of_type(ctx, item_id, heif_item_property_type_transform_crop, &crop_id, 1) > 0) {
         int l = 0, t = 0, r = 0, b = 0;
         heif_item_get_property_transform_crop_borders(ctx, item_id, crop_id, size.width(), size.height(), &l, &t, &r, &b);
-        crop = QRect(QPoint(t, l), size - QSize(b + t, r + l));
+
+        if (l >= size.width() || r >= size.width() || t >= size.height() || b >= size.height()) {
+            qCWarning(LOG_HEIFPLUGIN) << "Invalid crop values: left=" << l << "top=" << t << "right=" << r << "bottom=" << b;
+        }
+        if (l < 0) {
+            l = 0;
+        }
+        if (t < 0) {
+            t = 0;
+        }
+        if (r < 0) {
+            r = 0;
+        }
+        if (b < 0) {
+            b = 0;
+        }
+        if (l == 0 && t == 0 && r == 0 && b == 0) {
+            // no cropping needed
+            return false;
+        }
+        crop = QRect(QPoint(l, t), size - QSize(l + r, t + b));
+        return crop.isValid();
     }
 
-    return crop.isValid();
+    return false;
 }
 
 bool HEIFHandler::isSupportedBMFFType(const QByteArray &header)
