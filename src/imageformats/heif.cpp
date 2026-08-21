@@ -951,8 +951,8 @@ bool HEIFHandler::ensureDecoder()
     struct heif_image *img = nullptr;
     err = heif_decode_image(handle, &img, heif_colorspace_RGB, chroma, decoder_option);
 
-    if (err.code == heif_error_Invalid_input && err.subcode == heif_suberror_Unknown_NCLX_matrix_coefficients && img == nullptr && buffer.contains("Xiaomi")) {
-        qCWarning(LOG_HEIFPLUGIN) << "Non-standard HEIF image with invalid matrix_coefficients, probably made by a Xiaomi device!";
+    if (err.code == heif_error_Invalid_input && err.subcode == heif_suberror_Unknown_NCLX_matrix_coefficients && img == nullptr) {
+        qCWarning(LOG_HEIFPLUGIN) << "Non-standard HEIF image with invalid matrix_coefficients!";
 
         // second try to decode with strict decoding disabled
         decoder_option->strict_decoding = 0;
