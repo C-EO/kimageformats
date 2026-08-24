@@ -1,0 +1,7 @@
+[
+    {
+        "fileName": "konqi.jpg",
+        "fuzziness": 72,
+        "description": "Minimum fuzziness value to pass the test on all architectures."
+    }
+]
