@@ -368,7 +368,8 @@ static void readMetadata(const Imf::Header &header, QImage &image)
 
     // shot metadata
     if (auto isoSpeed = header.findTypedAttribute<Imf::FloatAttribute>("isoSpeed")) {
-        image.setText(QStringLiteral(META_KEY_ISOSPEEDRATINGS), QLocale::c().toString(qRound(isoSpeed->value())));
+        if (auto v = qRoundOrZero(isoSpeed->value()))
+            image.setText(QStringLiteral(META_KEY_ISOSPEEDRATINGS), QLocale::c().toString(v));
     }
     if (auto expTime = header.findTypedAttribute<Imf::FloatAttribute>("expTime")) {
         image.setText(QStringLiteral(META_KEY_EXPOSURETIME), QLocale::c().toString(expTime->value()));

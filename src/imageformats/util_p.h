@@ -165,20 +165,27 @@ inline bool checkImageSize(const QSize& size, qint32 bytesPerPixel)
     return checkImageSize(size.width(), size.height(), bytesPerPixel);
 }
 
+/*!
+ * \brief qRoundOrZero_T
+ * In images, many float values ​​can only be positive (e.g., resolution). This function calculates
+ * the roundness of the passed value, returning 0 if the value is negative or invalid.
+ * \return 0 when \a d is negative, NaN, Inf or std::numeric_limits<TI>::max(). Otherwise the qRound of \a d.
+ */
 template<class TI, class SF> // SF = source FP, TI = target INT
 TI qRoundOrZero_T(SF d, bool *ok = nullptr)
 {
+    bool tmp = false;
+    if (ok == nullptr) {
+        ok = &tmp;
+    }
+
     // checks for undefined behavior
-    if (qIsNaN(d) || qIsInf(d) || d < SF() || d > SF(std::numeric_limits<TI>::max())) {
-        if (ok) {
-            *ok = false;
-        }
-        return 0;
+    if (qIsNaN(d) || qIsInf(d) || d < SF()) {
+        *ok = false;
+    } else {
+        *ok = d < SF(std::numeric_limits<TI>::max());
     }
-    if (ok) {
-        *ok = true;
-    }
-    return qRound(d);
+    return *ok ? qRound(d) : 0;
 }
 
 inline qint32 qRoundOrZero(double d, bool *ok = nullptr)
