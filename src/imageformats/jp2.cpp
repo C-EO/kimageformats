@@ -622,21 +622,20 @@ public:
             m_cparameters.tcp_rates[0] = 100.0 - (m_quality < 10 ? m_quality : 10 + (std::log10(m_quality) - 1) * 90);
         }
 
-        std::unique_ptr<opj_image_cmptparm_t> cmptparm(new opj_image_cmptparm_t[ncomp]);
-        for (int i = 0; i < ncomp; ++i) {
-            auto &&p = cmptparm.get() + i;
-            memset(p, 0, sizeof(opj_image_cmptparm_t));
-            p->dx = m_cparameters.subsampling_dx;
-            p->dy = m_cparameters.subsampling_dy;
-            p->w = image.width();
-            p->h = image.height();
-            p->x0 = 0;
-            p->y0 = 0;
-            p->prec = prec;
-            p->sgnd = 0;
+        std::vector<opj_image_cmptparm_t> cmptparm(ncomp);
+        for (opj_image_cmptparm_t &p : cmptparm) {
+            memset(&p, 0, sizeof(opj_image_cmptparm_t));
+            p.dx = m_cparameters.subsampling_dx;
+            p.dy = m_cparameters.subsampling_dy;
+            p.w = image.width();
+            p.h = image.height();
+            p.x0 = 0;
+            p.y0 = 0;
+            p.prec = prec;
+            p.sgnd = 0;
         }
 
-        m_jp2_image = opj_image_create(ncomp, cmptparm.get(), cs);
+        m_jp2_image = opj_image_create(ncomp, cmptparm.data(), cs);
         if (m_jp2_image == nullptr) {
             return false;
         }
